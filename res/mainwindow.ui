@@ -14,8 +14,8 @@
    <string>CapeEEPROMViewer</string>
   </property>
   <property name="windowIcon">
-   <iconset>
-    <normaloff>:/CapeEEPROMViewer/kicad.png</normaloff>:/CapeEEPROMViewer/kicad.png</iconset>
+   <iconset resource="CapeEEPROMViewer.qrc">
+    <normaloff>:/CapeEEPROMViewer/CapeEEPROMViewer.png</normaloff>:/CapeEEPROMViewer/CapeEEPROMViewer.png</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -46,13 +46,16 @@
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>2</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tabStringPorts">
        <attribute name="title">
         <string>String Ports</string>
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_3">
+        <item>
+         <widget class="QComboBox" name="comboBoxCape"/>
+        </item>
         <item>
          <widget class="QTableWidget" name="twParts">
           <property name="columnCount">
@@ -84,7 +87,7 @@
        </attribute>
        <layout class="QGridLayout" name="gridLayout_2">
         <item row="0" column="0">
-         <widget class="QTextEdit" name="textEdit"/>
+         <widget class="QTableWidget" name="tableWidgetSerial"/>
         </item>
        </layout>
       </widget>
@@ -104,14 +107,7 @@
        </attribute>
        <layout class="QVBoxLayout" name="verticalLayout_4">
         <item>
-         <widget class="QListWidget" name="lwFPResults">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="MinimumExpanding">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
+         <widget class="QTextEdit" name="textEditCapeInfo"/>
         </item>
        </layout>
       </widget>
@@ -217,8 +213,8 @@
   </action>
   <action name="actionAbout">
    <property name="icon">
-    <iconset>
-     <normaloff>:/CapeEEPROMViewer/kicad.png</normaloff>:/CapeEEPROMViewer/kicad.png</iconset>
+    <iconset resource="CapeEEPROMViewer.qrc">
+     <normaloff>:/CapeEEPROMViewer/CapeEEPROMViewer.png</normaloff>:/CapeEEPROMViewer/CapeEEPROMViewer.png</iconset>
    </property>
    <property name="text">
     <string>About...</string>

@@ -4,6 +4,7 @@
 
 #include "cape_utils.h"
 
+
 #include "config.h"
 
 #include <QMessageBox>
@@ -18,6 +19,9 @@
 #include <QInputDialog>
 #include <QCommandLineParser>
 #include <QTimer>
+#include <QJsonObject>
+#include <QJsonDocument>
+#include <QJsonArray>
 
 #include "spdlog/spdlog.h"
 
@@ -66,14 +70,14 @@ MainWindow::MainWindow(QWidget *parent)
 	settings = std::make_unique< QSettings>(appdir + "/settings.ini", QSettings::IniFormat);
 
 	RedrawRecentList();
+	connect(ui->comboBoxCape, &QComboBox::currentTextChanged, this, &MainWindow::RedrawStringPortList);
+	
 
 	int index = settings->value("table_index", -1).toInt();
 	if (-1 != index)
 	{
 		ui->tabWidget->setCurrentIndex(index);
 	}
-
-	QTimer::singleShot( 500, this, SLOT( ProcessCommandLine() ) );
 }
 
 MainWindow::~MainWindow()
@@ -143,12 +147,55 @@ void MainWindow::LoadEEPROM(QString const& filepath)
 	settings->sync();
 
 	QFileInfo proj(filepath);
+	m_cape = cape_utils::parseEEPROM(filepath.toStdString());
 
+	ui->leProject->setText(m_cape.AsString().c_str());
 	
 	AddRecentList(proj.absoluteFilePath());
+
+	ReadCapeInfo(m_cape.folder.c_str());
+	CreateStringsList(m_cape.folder.c_str());
 }
 
-void MainWindow::RedrawStringPortList()
+void MainWindow::ReadCapeInfo(QString const& folder)
+{
+	QFile infoFile(folder + "/cape-info.json");
+	if (!infoFile.exists())
+	{
+		LogMessage("cape-info file not found", spdlog::level::level_enum::err);
+		return;
+	}
+	//emit SendMessage("Loading json file " + jsonFile, spdlog::level::level_enum::debug);
+	if (!infoFile.open(QIODevice::ReadOnly))
+	{
+		LogMessage("Error Opening: cape-info.json" , spdlog::level::level_enum::err);
+		return;
+	}
+
+	QByteArray saveData = infoFile.readAll();
+
+	ui->textEditCapeInfo->setText(saveData);
+}
+
+void MainWindow::CreateStringsList(QString const& folder)
+{
+	QDir directory(folder + "/strings");
+	auto const& stringFiles = directory.entryInfoList(QStringList() << "*.json" , QDir::Files);
+
+	ui->comboBoxCape->clear();
+	
+	for (auto const& file : stringFiles)
+	{
+		ui->comboBoxCape->addItem(file.fileName());
+	}
+}
+
+void MainWindow::ReadStringFile(QString const& file) 
+{
+
+}
+
+void MainWindow::RedrawStringPortList(QString const& strings)
 {
 	auto SetItem = [&](int row, int col, QString const& text)
 	{
@@ -156,9 +203,41 @@ void MainWindow::RedrawStringPortList()
 		ui->twParts->item(row, col)->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 		ui->twParts->item(row, col)->setText(text);
 	};
-	//ui->twParts->clearContents();
-	//ui->twParts->setRowCount(static_cast<int>(schematic_adder->getPartList().size()));
+
+
+	QFile jsonFile(QString(m_cape.folder.c_str()) + "/strings/" + strings);
+	if (!jsonFile.exists())
+	{
+		LogMessage("file not found" + strings, spdlog::level::level_enum::err);
+		return;
+	}
+	//emit SendMessage("Loading json file " + jsonFile, spdlog::level::level_enum::debug);
+	if (!jsonFile.open(QIODevice::ReadOnly))
+	{
+		LogMessage("Error Opening: " + strings, spdlog::level::level_enum::err);
+		return;
+	}
+
+	QByteArray saveData = jsonFile.readAll();
+
+	QJsonDocument loadDoc(QJsonDocument::fromJson(saveData));
+
+
+	QJsonArray mappingArray = loadDoc.object()["outputs"].toArray();
+	
+
+	ui->twParts->clearContents();
+	ui->twParts->setRowCount(static_cast<int>(mappingArray.size()));
 	int row{ 0 };
+
+	for (auto const& mapp : mappingArray)
+	{
+		QJsonObject mapObj = mapp.toObject();
+		QString pin = mapObj["pin"].toString();
+		SetItem(row, 0, "String " + QString::number(row+1));
+		SetItem(row, 1, pin);
+		++row;
+	}
 
 	//for (auto const& line : schematic_adder->getPartList())
 	//{
@@ -235,92 +314,3 @@ void MainWindow::LogMessage(QString const& message, spdlog::level::level_enum ll
 	qApp->processEvents();
 }
 
-void MainWindow::ProcessCommandLine()
-{
-	QCommandLineParser parser;
-    parser.setApplicationDescription("Kicad Helper");
-
-    QCommandLineOption projectOption(QStringList() << "p" << "project",
-             "Project File to Load.",
-            "project");
-    parser.addOption(projectOption);
-
-    QCommandLineOption mappingOption(QStringList() << "m" << "mapping",
-             "Text Replace Mapping JSON to Load.",
-            "mapping");
-    parser.addOption(mappingOption);
-
-    QCommandLineOption partlistOption(QStringList() << "t" << "partlist",
-             "Part Number List JSON to Load.",
-            "partlist");
-    parser.addOption(partlistOption);
-
-	QCommandLineOption libraryOption(QStringList() << "l" << "library",
-		"Set Library Folder.",
-		"library");
-	parser.addOption(libraryOption);
-
-	QCommandLineOption bomOption(QStringList() << "b" << "bom",
-		"Export to CSV BOM.",
-		"bom");
-	parser.addOption(bomOption);
-
-	QCommandLineOption reportOption(QStringList() << "o" << "report",
-             "Save Check Schematic FootPrints Report.",
-            "report");
-    parser.addOption(reportOption);
-
-	QCommandLineOption addOption(QStringList() << "a" << "add",
-            "Add Parts Numbers to Schematic.");
-	parser.addOption(addOption);
-
-	QCommandLineOption checkOption(QStringList() << "c" << "check",
-            "Check Schematic Symbols and Footprints.");
-    parser.addOption(checkOption);
-
-	QCommandLineOption fixOption(QStringList() << "f" << "find",
-		"Attempt to Find Symbols and Footprints.");
-	parser.addOption(fixOption);
-
-	QCommandLineOption checkSymOption(QStringList() << "s" << "checksym",
-            "Check Schematic Symbols.");
-    parser.addOption(checkSymOption);
-
-	QCommandLineOption checkFpOption(QStringList() << "n" << "checkfp",
-            "Check Schematic Footprints.");
-    parser.addOption(checkFpOption);
-
-	QCommandLineOption check3dOption(QStringList() << "3" << "check3d",
-            "Check 3D Model Paths.");
-    parser.addOption(check3dOption);
-
-	QCommandLineOption fixSymOption(QStringList() << "y" << "findsym",
-		"Attempt to Find Schematic Symbols.");
-	parser.addOption(fixSymOption);
-
-	QCommandLineOption fixFpOption(QStringList() << "i" << "findfp",
-		"Attempt to Find Schematic Footprints.");
-	parser.addOption(fixFpOption);
-
-	QCommandLineOption fix3dOption(QStringList() << "d" << "find3d",
-            "Fix 3D Model Paths.");
-    parser.addOption(fix3dOption);
-
-	QCommandLineOption replaceOption(QStringList() << "r" << "replace",
-            "File to do text Repace in.",
-			"replace");
-
-    parser.addOption(replaceOption);
-
-	QCommandLineOption exitOption(QStringList() << "x" << "exit",
-            "Exit Software when done.");
-    parser.addOption(exitOption);
-
-	helpText = parser.helpText();
-
-    parser.parse(QCoreApplication::arguments());
-
-	auto lastProject{ settings->value("last_project").toString() };
-
-
-}

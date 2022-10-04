@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="CapeEEPROMViewer">
+    <file>CapeEEPROMViewer.png</file>
     <file>icons/book_open.png</file>
     <file>icons/accept.png</file>
     <file>icons/add.png</file>

@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 
+#include "cape_info.h"
 
 #include "spdlog/spdlog.h"
 #include "spdlog/common.h"
@@ -18,7 +19,6 @@ class QListWidget;
 class QTableWidget;
 class QSettings;
 QT_END_NAMESPACE
-
 
 class MainWindow : public QMainWindow
 {
@@ -41,11 +41,9 @@ public Q_SLOTS:
     void on_menuRecent_triggered();
     void on_actionClear_triggered();
 
-    void RedrawStringPortList();
+    void RedrawStringPortList(QString const& string);
 
     void LogMessage(QString const& message , spdlog::level::level_enum llvl = spdlog::level::level_enum::debug, QString const& file = QString());
-
-    void ProcessCommandLine();
 
 private:
     Ui::MainWindow *ui;
@@ -55,6 +53,11 @@ private:
     QString appdir;
     QString helpText;
 
+    cape_info m_cape;
+
+    void ReadCapeInfo(QString const& file);
+    void CreateStringsList(QString const& folder);
+    void ReadStringFile(QString const& file);
 
     void AddRecentList(QString const& project);
     void RedrawRecentList();
