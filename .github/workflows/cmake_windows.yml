@@ -41,5 +41,5 @@ jobs:
     - name: Upload Installer
       uses: actions/upload-artifact@v2
       with:
-        name: kicad_helper
+        name: CapeEEPROMViewer
         path: 'res\installer\output\**'
