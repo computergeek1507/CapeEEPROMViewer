@@ -1,9 +1,9 @@
 ### CapeEEPROMViewer
 
-A tool to "View" FPP Cape Eeprom Files.
+A tool to "View" FPP Cape EEPROM Files.
 
 ### Building
-Uses C++17, QT 5.15, spdlog, and cMake.
+Uses C++20, QT 5.15, spdlog, and cMake.
 
 ```git clone https://github.com/computergeek1507/CapeEEPROMViewer.git```
 
