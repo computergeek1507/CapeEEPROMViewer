@@ -281,10 +281,15 @@ void MainWindow::ReadOtherFile(QString const& folder)
 	for (auto const& mapp : mappingArray)
 	{
 		QJsonObject mapObj = mapp.toObject();
-		QString type = mapObj["type"].toString();
-		QString device = mapObj["device"].toString();
-		SetItem(row, 0, type);
-		SetItem(row, 1, device);
+
+		if (mapObj.contains("type"))
+		{
+			SetItem(row, 0, mapObj["type"].toString());
+		}
+		if (mapObj.contains("device")) 
+		{
+			SetItem(row, 1, mapObj["device"].toString());
+		}
 		++row;
 	}
 }
@@ -328,9 +333,11 @@ void MainWindow::RedrawStringPortList(QString const& strings)
 	for (auto const& mapp : mappingArray)
 	{
 		QJsonObject mapObj = mapp.toObject();
-		QString pin = mapObj["pin"].toString();
-		SetItem(row, 0, "String " + QString::number(row+1));
-		SetItem(row, 1, pin);
+		SetItem(row, 0, "String " + QString::number(row + 1));
+		if (mapObj.contains("pin"))
+		{
+			SetItem(row, 1, mapObj["pin"].toString());
+		}
 		++row;
 	}
 }
