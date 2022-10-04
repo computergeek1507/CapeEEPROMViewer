@@ -83,11 +83,22 @@
       </widget>
       <widget class="QWidget" name="tabSerial">
        <attribute name="title">
-        <string>Serial Ports</string>
+        <string>Other Ports</string>
        </attribute>
        <layout class="QGridLayout" name="gridLayout_2">
         <item row="0" column="0">
-         <widget class="QTableWidget" name="tableWidgetSerial"/>
+         <widget class="QTableWidget" name="twOther">
+          <column>
+           <property name="text">
+            <string>Type</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Device</string>
+           </property>
+          </column>
+         </widget>
         </item>
        </layout>
       </widget>
@@ -97,7 +108,33 @@
        </attribute>
        <layout class="QGridLayout" name="gridLayout_3">
         <item row="0" column="0">
-         <widget class="QTableWidget" name="tableWidgetGPIO"/>
+         <widget class="QTableWidget" name="twGPIO">
+          <column>
+           <property name="text">
+            <string>Pin</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Mode</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Type</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Command</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Args</string>
+           </property>
+          </column>
+         </widget>
         </item>
        </layout>
       </widget>

@@ -5,20 +5,6 @@
 #include <QProcess>
 namespace cape_utils
 {
-	QString CleanQuotes(QString item)
-	{
-		if (item.startsWith("\""))
-		{
-			item.remove(0, 1);
-		}
-		if (item.endsWith("\""))
-		{
-			int pos = item.lastIndexOf("\"");
-			item = item.left(pos);
-		}
-		return item;
-	}
-
     std::string exec(const std::string& cmd, const std::string& dir) {
         QProcess gzip;
         gzip.setWorkingDirectory(dir.c_str());
@@ -63,115 +49,99 @@ namespace cape_utils
 
     cape_info parseEEPROM(std::string const& EEPROM) {
         cape_info info;
-        std::filesystem::path eeprompath(EEPROM);
-        std::string eepromdir = eeprompath.parent_path().string();
-        eepromdir += "/";
-        eepromdir += eeprompath.stem().string();
-        eepromdir += "/";
-        std::filesystem::remove_all(eepromdir);
-        std::filesystem::create_directories(eepromdir);
-        uint8_t* buffer = new uint8_t[32768]; //32K is the largest eeprom we support, more than enough
-        FILE* file = fopen(EEPROM.c_str(), "rb");
-        if (file == nullptr) {
-            printf("Failed to open eeprom: %s\n", EEPROM.c_str());
-            printf("   error: %s\n", strerror(errno));
-            return info;
-        }
-        int l = fread(buffer, 1, 6, file);
+        try {
+            std::filesystem::path eeprompath(EEPROM);
+            std::string eepromdir = eeprompath.parent_path().string();
+            eepromdir += "/";
+            eepromdir += eeprompath.stem().string();
+            eepromdir += "/";
+            std::filesystem::remove_all(eepromdir);
+            std::filesystem::create_directories(eepromdir);
+            uint8_t* buffer = new uint8_t[32768]; //32K is the largest eeprom we support, more than enough
+            FILE* file = fopen(EEPROM.c_str(), "rb");
+            if (file == nullptr) {
+                return info;
+            }
+            int l = fread(buffer, 1, 6, file);
 
-        if (buffer[0] == 'F' && buffer[1] == 'P' && buffer[2] == 'P' && buffer[3] == '0' && buffer[4] == '2') {
-            info.name = read_string(file, 26);   // cape name + nulls
-            info.version = read_string(file, 10);  // cape version + nulls
-            info.serialNumber = read_string(file, 16); // cape serial# + nulls
-            
-            std::string flenStr = read_string(file, 6); //length of the section
-            int flen = std::stoi(flenStr);
-            while (flen) {
-                int flag = std::stoi(read_string(file, 2));
-                std::string path{ eepromdir };
-                if (flag < 50) {
-                    //path = outputPath + "/";
-                    path += read_string(file, 64);
-                }
-                switch (flag) {
-                case 0:
-                case 1:
-                case 2:
-                case 3: {
-                    int l = fread(buffer, 1, flen, file);
-                    
-                    char* s1 = strdup(path.c_str());
-                    std::filesystem::path p(s1);
-                    std::string dir = p.parent_path().filename().string();
-                    std::filesystem::create_directories(eepromdir + dir);
-                    info.folder = eepromdir + dir;
-                    put_file_contents(path, buffer, flen);
-                    free(s1);
-                    if (flag == 1) {
-                        std::string cmd = "7z x " + path;
-                        exec(cmd, eepromdir + dir);
+            if (buffer[0] == 'F' && buffer[1] == 'P' && buffer[2] == 'P' && buffer[3] == '0' && buffer[4] == '2') {
+                info.name = read_string(file, 26);   // cape name + nulls
+                info.version = read_string(file, 10);  // cape version + nulls
+                info.serialNumber = read_string(file, 16); // cape serial# + nulls
+
+                std::string flenStr = read_string(file, 6); //length of the section
+                int flen = std::stoi(flenStr);
+                while (flen) {
+                    int flag = std::stoi(read_string(file, 2));
+                    std::string path{ eepromdir };
+                    if (flag < 50) {
+                        //path = outputPath + "/";
+                        path += read_string(file, 64);
                     }
-                    else if (flag == 2) {
-                        std::string cmd = "tar -xzvf " + path ;
-                        exec(cmd, eepromdir + dir);
+                    switch (flag) {
+                    case 0:
+                    case 1:
+                    case 2:
+                    case 3: {
+                        int l = fread(buffer, 1, flen, file);
+
+                        char* s1 = strdup(path.c_str());
+                        std::filesystem::path p(s1);
+                        std::string dir = p.parent_path().filename().string();
+                        std::filesystem::create_directories(eepromdir + dir);
+                        info.folder = eepromdir + dir;
+                        put_file_contents(path, buffer, flen);
+                        free(s1);
+                        if (flag == 1) {
+                            std::string cmd = "7z x " + path;
+                            exec(cmd, eepromdir + dir);
+                        }
+                        else if (flag == 2) {
+                            std::string cmd = "tar -xzvf " + path;
+                            exec(cmd, eepromdir + dir);
+                        }
+                        else if (flag == 3) {
+                            std::string cmd = "tar -xjvf " + path;
+                            exec(cmd, eepromdir + dir);
+                        }
+                        break;
                     }
-                    else if (flag == 3) {
-                        std::string cmd = "tar -xjvf " + path;
-                        exec(cmd, eepromdir + dir);
-                    }
-                    printf("- extracted file: %s\n", path.c_str());
-                    break;
-                }
-                case 96: {
-                    //if (hasSignature && validEpromLocation && validSignature)
-                    {
+                    case 96: {
                         info.serialNumber = read_string(file, 16);
                         read_string(file, 42);
-                    }
-                    //else {
-                    //    //skip
-                    //    read_string(file, 16);
-                    //    read_string(file, 42);
-                    //}
-                    break;
-                }
-                case 97: {
-                    std::string eKey = read_string(file, 12);
-                    std::string eValue = read_string(file, flen - 12);
-                    
-                    break;
-                }
-                case 98: {
-                    std::string type = read_string(file, 2);
-                    if (type == "1") {
-                       
-                    }
-                    else if (type == "2") {
-                       
-                    }
-                    else if (type != "0") {
-                        
-                    }                    
-                    break;
-                }
-                case 99: {
-                    
-                    read_string(file, 6);
-                    fread(buffer, 1, flen - 6, file);
-                   
-                    break;
-                }
-                default:
-                    fseek(file, flen, SEEK_CUR);
-                    printf("Don't know how to handle -%s- with type %d and length %d\n", path.c_str(), flag, flen);
-                }
-                flenStr = read_string(file, 6); //length of the section
-                flen = std::stoi(flenStr);
-            }
-        }
-        fclose(file);
-        delete[] buffer;
 
+                        break;
+                    }
+                    case 97: {
+                        read_string(file, 12);
+                        read_string(file, flen - 12);
+
+                        break;
+                    }
+                    case 98: {
+                        read_string(file, 2);                        
+                        break;
+                    }
+                    case 99: {
+
+                        read_string(file, 6);
+                        fread(buffer, 1, flen - 6, file);
+
+                        break;
+                    }
+                    default:
+                        fseek(file, flen, SEEK_CUR);
+                    }
+                    flenStr = read_string(file, 6); //length of the section
+                    flen = std::stoi(flenStr);
+                }
+            }
+            fclose(file);
+            delete[] buffer;
+        }
+        catch (...)
+        {
+        }
         return info;
     }
 }

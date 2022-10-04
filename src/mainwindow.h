@@ -36,8 +36,6 @@ public Q_SLOTS:
     void on_actionAbout_triggered();
     void on_actionOpen_Logs_triggered();
 
-    void on_tabWidget_currentChanged(int row);
-
     void on_menuRecent_triggered();
     void on_actionClear_triggered();
 
@@ -51,13 +49,13 @@ private:
     std::shared_ptr<spdlog::logger> logger{ nullptr };
     std::unique_ptr<QSettings> settings{ nullptr };
     QString appdir;
-    QString helpText;
 
     cape_info m_cape;
 
     void ReadCapeInfo(QString const& file);
     void CreateStringsList(QString const& folder);
-    void ReadStringFile(QString const& file);
+    void ReadGPIOFile(QString const& folder);
+    void ReadOtherFile(QString const& folder);
 
     void AddRecentList(QString const& project);
     void RedrawRecentList();

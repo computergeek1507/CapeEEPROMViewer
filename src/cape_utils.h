@@ -6,7 +6,6 @@
 
 namespace cape_utils
 {
-	QString CleanQuotes(QString item);
 	std::string exec(const std::string& cmd, const std::string& dir);
 	std::string trim(std::string str);
     std::string read_string(FILE* file, int len);

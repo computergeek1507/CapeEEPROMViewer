@@ -30,8 +30,6 @@
 
 #include <filesystem>
 
-enum LibraryColumns { Name, Type, URL, Descr };
-
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -52,7 +50,7 @@ MainWindow::MainWindow(QWidget *parent)
 		auto file{ std::string(logdir.toStdString() + log_name) };
 		auto rotating = std::make_shared<spdlog::sinks::rotating_file_sink_mt>( file, 1024 * 1024, 5, false);
 
-		logger = std::make_shared<spdlog::logger>("kicadhelper", rotating);
+		logger = std::make_shared<spdlog::logger>("capeeepromviewer", rotating);
 		logger->flush_on(spdlog::level::debug);
 		logger->set_level(spdlog::level::debug);
 		logger->set_pattern("[%D %H:%M:%S] [%L] %v");
@@ -62,22 +60,13 @@ MainWindow::MainWindow(QWidget *parent)
 		QMessageBox::warning(this, "Logger Failed", "Logger Failed To Start.");
 	}
 
-	//logger->info("Program started v" + std::string( PROJECT_VER));
-	//logger->info(std::string("Built with Qt ") + std::string(QT_VERSION_STR));
-
 	setWindowTitle(windowTitle() + " v" + PROJECT_VER);
 
 	settings = std::make_unique< QSettings>(appdir + "/settings.ini", QSettings::IniFormat);
 
 	RedrawRecentList();
 	connect(ui->comboBoxCape, &QComboBox::currentTextChanged, this, &MainWindow::RedrawStringPortList);
-	
 
-	int index = settings->value("table_index", -1).toInt();
-	if (-1 != index)
-	{
-		ui->tabWidget->setCurrentIndex(index);
-	}
 }
 
 MainWindow::~MainWindow()
@@ -101,10 +90,8 @@ void MainWindow::on_actionClose_triggered()
 
 void MainWindow::on_actionAbout_triggered()
 {
-	auto hpp {helpText.right(helpText.size() - helpText.indexOf("Options:"))};
-	QString text {QString("Cape EEPROM Viewer v%1\nQT v%2\n\n\nCommandline %3\n\nIcons by:\n%4")
+	QString text {QString("Cape EEPROM Viewer v%1\nQT v%2\n\n\nIcons by:\n%4")
 		.arg(PROJECT_VER).arg(QT_VERSION_STR)
-		.arg(hpp)
 		.arg(R"(http://www.famfamfam.com/lab/icons/silk/)")};
 		//http://www.famfamfam.com/lab/icons/silk/
 	QMessageBox::about( this, "About Cape EEPROM Viewer", text );
@@ -113,12 +100,6 @@ void MainWindow::on_actionAbout_triggered()
 void MainWindow::on_actionOpen_Logs_triggered()
 {
 	QDesktopServices::openUrl(QUrl::fromLocalFile(appdir + "/log/"));
-}
-
-void MainWindow::on_tabWidget_currentChanged(int index)
-{
-	settings->setValue("table_index", index);
-	settings->sync();
 }
 
 void MainWindow::on_menuRecent_triggered()
@@ -155,10 +136,13 @@ void MainWindow::LoadEEPROM(QString const& filepath)
 
 	ReadCapeInfo(m_cape.folder.c_str());
 	CreateStringsList(m_cape.folder.c_str());
+	ReadGPIOFile(m_cape.folder.c_str());
+	ReadOtherFile(m_cape.folder.c_str());
 }
 
 void MainWindow::ReadCapeInfo(QString const& folder)
 {
+	ui->textEditCapeInfo->clear();
 	QFile infoFile(folder + "/cape-info.json");
 	if (!infoFile.exists())
 	{
@@ -190,13 +174,125 @@ void MainWindow::CreateStringsList(QString const& folder)
 	}
 }
 
-void MainWindow::ReadStringFile(QString const& file) 
+void MainWindow::ReadGPIOFile(QString const& folder) 
 {
+	ui->twGPIO->clearContents();
+	ui->twGPIO->setRowCount(0);
+	//C:\Users\scoot\Desktop\BBB16-220513130003-eeprom\tmp\defaults\config\gpio.json
+	auto SetItem = [&](int row, int col, QString const& text)
+	{
+		ui->twGPIO->setItem(row, col, new QTableWidgetItem());
+		ui->twGPIO->item(row, col)->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+		ui->twGPIO->item(row, col)->setText(text);
+	};
 
+	QFile jsonFile(folder + "/defaults/config/gpio.json");
+	if (!jsonFile.exists())
+	{
+		LogMessage("file not found gpio.json", spdlog::level::level_enum::err);
+		return;
+	}
+	if (!jsonFile.open(QIODevice::ReadOnly))
+	{
+		LogMessage("Error Opening: gpio.json", spdlog::level::level_enum::err);
+		return;
+	}
+
+	QByteArray saveData = jsonFile.readAll();
+
+	QJsonDocument loadDoc(QJsonDocument::fromJson(saveData));
+	QJsonArray mappingArray = loadDoc.array();
+
+	ui->twGPIO->setRowCount(static_cast<int>(mappingArray.size()));
+	int row{ 0 };
+
+	for (auto const& mapp : mappingArray)
+	{
+		QJsonObject mapObj = mapp.toObject();
+		QString pin = mapObj["pin"].toString();
+		QString mode = mapObj["mode"].toString();
+		SetItem(row, 0, pin);
+		SetItem(row, 1, mode);
+
+		if (mapObj.contains("rising"))
+		{
+			SetItem(row, 2, "rising");
+			if (mapObj["rising"].toObject().contains("command")) 
+			{
+				SetItem(row, 3, mapObj["rising"].toObject()["command"].toString());
+			}
+			if (mapObj["rising"].toObject().contains("args") &&
+				mapObj["rising"].toObject()["args"].toArray().size()>0)
+			{
+				SetItem(row, 4, mapObj["rising"].toObject()["args"].toArray()[0].toString());
+			}
+		}
+		else if (mapObj.contains("failing"))
+		{
+			SetItem(row, 2, "failing");
+			if (mapObj["failing"].toObject().contains("command"))
+			{
+				SetItem(row, 3, mapObj["failing"].toObject()["command"].toString());
+			}
+			if (mapObj["failing"].toObject().contains("args") &&
+				mapObj["failing"].toObject()["args"].toArray().size() > 0)
+			{
+				SetItem(row, 4, mapObj["failing"].toObject()["args"].toArray()[0].toString());
+			}
+		}
+
+		++row;
+	}
+}
+
+void MainWindow::ReadOtherFile(QString const& folder)
+{
+	ui->twOther->clearContents();
+	ui->twOther->setRowCount(0);
+	//C:\Users\scoot\Desktop\BBB16-220513130003-eeprom\tmp\defaults\config\co-other.json
+	//gpio.json
+	auto SetItem = [&](int row, int col, QString const& text)
+	{
+		ui->twOther->setItem(row, col, new QTableWidgetItem());
+		ui->twOther->item(row, col)->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+		ui->twOther->item(row, col)->setText(text);
+	};
+
+	QFile jsonFile(folder + "/defaults/config/co-other.json");
+	if (!jsonFile.exists())
+	{
+		LogMessage("file not found co-other.json", spdlog::level::level_enum::err);
+		return;
+	}
+	if (!jsonFile.open(QIODevice::ReadOnly))
+	{
+		LogMessage("Error Opening: co-other.json", spdlog::level::level_enum::err);
+		return;
+	}
+
+	QByteArray saveData = jsonFile.readAll();
+
+	QJsonDocument loadDoc(QJsonDocument::fromJson(saveData));
+	QJsonArray mappingArray = loadDoc.object()["channelOutputs"].toArray();
+
+	ui->twOther->setRowCount(static_cast<int>(mappingArray.size()));
+	int row{ 0 };
+
+	for (auto const& mapp : mappingArray)
+	{
+		QJsonObject mapObj = mapp.toObject();
+		QString type = mapObj["type"].toString();
+		QString device = mapObj["device"].toString();
+		SetItem(row, 0, type);
+		SetItem(row, 1, device);
+		++row;
+	}
 }
 
 void MainWindow::RedrawStringPortList(QString const& strings)
 {
+	ui->twParts->clearContents();
+	ui->twParts->setRowCount(0);
 	auto SetItem = [&](int row, int col, QString const& text)
 	{
 		ui->twParts->setItem(row, col, new QTableWidgetItem());
@@ -204,6 +300,10 @@ void MainWindow::RedrawStringPortList(QString const& strings)
 		ui->twParts->item(row, col)->setText(text);
 	};
 
+	if (strings.isEmpty() || m_cape.folder.empty())
+	{
+		return;
+	}
 
 	QFile jsonFile(QString(m_cape.folder.c_str()) + "/strings/" + strings);
 	if (!jsonFile.exists())
@@ -211,7 +311,6 @@ void MainWindow::RedrawStringPortList(QString const& strings)
 		LogMessage("file not found" + strings, spdlog::level::level_enum::err);
 		return;
 	}
-	//emit SendMessage("Loading json file " + jsonFile, spdlog::level::level_enum::debug);
 	if (!jsonFile.open(QIODevice::ReadOnly))
 	{
 		LogMessage("Error Opening: " + strings, spdlog::level::level_enum::err);
@@ -221,12 +320,8 @@ void MainWindow::RedrawStringPortList(QString const& strings)
 	QByteArray saveData = jsonFile.readAll();
 
 	QJsonDocument loadDoc(QJsonDocument::fromJson(saveData));
+	QJsonArray mappingArray = loadDoc.object()["outputs"].toArray();	
 
-
-	QJsonArray mappingArray = loadDoc.object()["outputs"].toArray();
-	
-
-	ui->twParts->clearContents();
 	ui->twParts->setRowCount(static_cast<int>(mappingArray.size()));
 	int row{ 0 };
 
@@ -238,18 +333,6 @@ void MainWindow::RedrawStringPortList(QString const& strings)
 		SetItem(row, 1, pin);
 		++row;
 	}
-
-	//for (auto const& line : schematic_adder->getPartList())
-	//{
-	//	SetItem(row, 0, line.value);
-	//	SetItem(row, 1, line.footPrint);
-	//	SetItem(row, 2, line.digikey);
-	//	SetItem(row, 3, line.lcsc);
-	//	SetItem(row, 4, line.mpn);
-	//	++row;
-	//}
-	//ui->twParts->resizeColumnsToContents();
-
 }
 
 void MainWindow::AddRecentList(QString const& file)
