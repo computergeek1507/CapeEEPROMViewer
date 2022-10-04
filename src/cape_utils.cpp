@@ -1,6 +1,6 @@
-#include "kicad_utils.h"
+#include "cape_utils.h"
 
-namespace kicad_utils
+namespace cape_utils
 {
 	QString CleanQuotes(QString item)
 	{

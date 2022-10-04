@@ -3,7 +3,7 @@
 
 #include <QString>
 
-namespace kicad_utils
+namespace cape_utils
 {
 	QString CleanQuotes(QString item);
 };
