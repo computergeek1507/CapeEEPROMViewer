@@ -377,30 +377,6 @@ void MainWindow::RedrawRecentList()
 
 void MainWindow::LogMessage(QString const& message, spdlog::level::level_enum llvl, QString const& file)
 {
-	logger->log(llvl, message.toStdString());
-	/*
-	trace = SPDLOG_LEVEL_TRACE,
-	debug = SPDLOG_LEVEL_DEBUG,
-	info = SPDLOG_LEVEL_INFO,
-	warn = SPDLOG_LEVEL_WARN,
-	err = SPDLOG_LEVEL_ERROR,
-	critical = SPDLOG_LEVEL_CRITICAL,
-	*/
-
-	QList< QColor > msgColors;
-	msgColors.append(Qt::darkBlue);
-	msgColors.append(Qt::blue);
-	msgColors.append(Qt::darkGreen);
-	msgColors.append("#DC582A");
-	msgColors.append(Qt::darkRed);
-	msgColors.append(Qt::red);
-
-	QListWidgetItem* it = new QListWidgetItem(message);
-	it->setForeground(QBrush(QColor(msgColors.at(llvl))));
-	it->setData(Qt::UserRole, file);
-	ui->lwLogs->addItem(it);
-	ui->lwLogs->scrollToBottom();
-
-	qApp->processEvents();
+	logger->log(llvl, message.toStdString());	
 }
 

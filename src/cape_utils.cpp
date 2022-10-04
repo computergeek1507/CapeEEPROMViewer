@@ -44,7 +44,6 @@ namespace cape_utils
         FILE* f = fopen(path.c_str(), "w+b");
         fwrite(data, 1, len, f);
         fclose(f);
-
     }
 
     cape_info parseEEPROM(std::string const& EEPROM) {
@@ -75,7 +74,6 @@ namespace cape_utils
                     int flag = std::stoi(read_string(file, 2));
                     std::string path{ eepromdir };
                     if (flag < 50) {
-                        //path = outputPath + "/";
                         path += read_string(file, 64);
                     }
                     switch (flag) {
@@ -109,24 +107,20 @@ namespace cape_utils
                     case 96: {
                         info.serialNumber = read_string(file, 16);
                         read_string(file, 42);
-
                         break;
                     }
                     case 97: {
                         read_string(file, 12);
                         read_string(file, flen - 12);
-
                         break;
                     }
                     case 98: {
-                        read_string(file, 2);                        
+                        read_string(file, 2);
                         break;
                     }
                     case 99: {
-
                         read_string(file, 6);
                         fread(buffer, 1, flen - 6, file);
-
                         break;
                     }
                     default:

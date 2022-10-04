@@ -2,6 +2,8 @@
 
 A tool to "View" FPP Cape EEPROM Files.
 
+Requires Windows 10 April 2018 Update or newer
+
 ### Building
 Uses C++20, QT 5.15, spdlog, and cMake.
 
