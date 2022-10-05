@@ -363,6 +363,10 @@ void MainWindow::RedrawRecentList()
 	auto recentProjectList = settings->value("Recent_ProjectsList").toStringList();
 	for (auto const& file : recentProjectList)
 	{
+		if (!QFile::exists(file))
+		{
+			continue;
+		}
 		QFileInfo fileInfo(file);
 		auto* recentpn = new QAction(this);
 		recentpn->setText(fileInfo.dir().dirName() + "/" + fileInfo.fileName());
