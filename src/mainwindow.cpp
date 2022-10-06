@@ -325,20 +325,50 @@ void MainWindow::RedrawStringPortList(QString const& strings)
 	QByteArray saveData = jsonFile.readAll();
 
 	QJsonDocument loadDoc(QJsonDocument::fromJson(saveData));
-	QJsonArray mappingArray = loadDoc.object()["outputs"].toArray();	
+	int tableSize{0};
 
-	ui->twParts->setRowCount(static_cast<int>(mappingArray.size()));
+	if (loadDoc.object().contains("outputs"))
+	{
+		tableSize += loadDoc.object()["outputs"].toArray().size();
+	}
+
+	if (loadDoc.object().contains("serial"))
+	{
+		tableSize += loadDoc.object()["serial"].toArray().size();
+	}
+	ui->twParts->setRowCount(tableSize);
 	int row{ 0 };
 
-	for (auto const& mapp : mappingArray)
+	if (loadDoc.object().contains("outputs"))
 	{
-		QJsonObject mapObj = mapp.toObject();
-		SetItem(row, 0, "String " + QString::number(row + 1));
-		if (mapObj.contains("pin"))
+		QJsonArray mappingArray = loadDoc.object()["outputs"].toArray();
+		for (auto const& mapp : mappingArray)
 		{
-			SetItem(row, 1, mapObj["pin"].toString());
+			QJsonObject mapObj = mapp.toObject();
+			SetItem(row, 0, "String " + QString::number(row + 1));
+			if (mapObj.contains("pin"))
+			{
+				SetItem(row, 1, mapObj["pin"].toString());
+			}
+			++row;
 		}
-		++row;
+	}
+
+	if (loadDoc.object().contains("serial"))
+	{
+		int serNum{ 1 };
+		QJsonArray mappingArray = loadDoc.object()["serial"].toArray();
+		for (auto const& mapp : mappingArray)
+		{
+			QJsonObject mapObj = mapp.toObject();
+			SetItem(row, 0, "Serial " + QString::number(serNum));
+			if (mapObj.contains("pin"))
+			{
+				SetItem(row, 1, mapObj["pin"].toString());
+			}
+			++row;
+			++serNum;
+		}
 	}
 }
 
