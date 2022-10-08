@@ -22,6 +22,8 @@
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QJsonArray>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 
 #include "spdlog/spdlog.h"
 
@@ -67,6 +69,14 @@ MainWindow::MainWindow(QWidget *parent)
 	RedrawRecentList();
 	connect(ui->comboBoxCape, &QComboBox::currentTextChanged, this, &MainWindow::RedrawStringPortList);
 
+	bool ssl = QSslSocket::supportsSsl();
+	QString sslFile = QSslSocket::sslLibraryBuildVersionString();
+
+	if (!ssl)
+	{
+		QString text = QStringLiteral("OpenSSL not found on your computer.<br>Please Install " ) + sslFile + QStringLiteral("<br><a href = 'http://slproweb.com/products/Win32OpenSSL.html'>OpenSSL Download< / a>");
+		QMessageBox::warning(this, "OpenSSL", text);
+	}
 }
 
 MainWindow::~MainWindow()
@@ -80,6 +90,18 @@ void MainWindow::on_actionOpen_EEPROM_triggered()
 	if (!EEPROM.isEmpty())
 	{
 		LoadEEPROM(EEPROM);
+	}
+}
+
+void MainWindow::on_actionDownload_EEPROM_triggered()
+{
+	auto firmwares = GetFirmwareURLList();
+	bool ok;
+	QString firmware = QInputDialog::getItem(this, "Select FPP Firmware", "Select FPP Firmware", firmwares.keys(), 0, false, &ok);
+
+	if (ok && !firmware.isEmpty())
+	{
+		DownloadFirmware(firmware, firmwares.value(firmware));
 	}
 }
 
@@ -116,7 +138,6 @@ void MainWindow::on_actionClear_triggered()
 {
 	ui->menuRecent->clear();
 	settings->remove("Recent_ProjectsList");
-	//settings->setValue("Recent_ProjectsList")
 
 	ui->menuRecent->addSeparator();
 	ui->menuRecent->addAction(ui->actionClear);
@@ -149,7 +170,7 @@ void MainWindow::ReadCapeInfo(QString const& folder)
 		LogMessage("cape-info file not found", spdlog::level::level_enum::err);
 		return;
 	}
-	//emit SendMessage("Loading json file " + jsonFile, spdlog::level::level_enum::debug);
+
 	if (!infoFile.open(QIODevice::ReadOnly))
 	{
 		LogMessage("Error Opening: cape-info.json" , spdlog::level::level_enum::err);
@@ -157,7 +178,6 @@ void MainWindow::ReadCapeInfo(QString const& folder)
 	}
 
 	QByteArray saveData = infoFile.readAll();
-
 	ui->textEditCapeInfo->setText(saveData);
 }
 
@@ -250,7 +270,6 @@ void MainWindow::ReadOtherFile(QString const& folder)
 	ui->twOther->clearContents();
 	ui->twOther->setRowCount(0);
 	//C:\Users\scoot\Desktop\BBB16-220513130003-eeprom\tmp\defaults\config\co-other.json
-	//gpio.json
 	auto SetItem = [&](int row, int col, QString const& text)
 	{
 		ui->twOther->setItem(row, col, new QTableWidgetItem());
@@ -316,6 +335,7 @@ void MainWindow::RedrawStringPortList(QString const& strings)
 		LogMessage("file not found" + strings, spdlog::level::level_enum::err);
 		return;
 	}
+
 	if (!jsonFile.open(QIODevice::ReadOnly))
 	{
 		LogMessage("Error Opening: " + strings, spdlog::level::level_enum::err);
@@ -409,8 +429,95 @@ void MainWindow::RedrawRecentList()
 	ui->menuRecent->addAction(ui->actionClear);
 }
 
-void MainWindow::LogMessage(QString const& message, spdlog::level::level_enum llvl, QString const& file)
+void MainWindow::LogMessage(QString const& message, spdlog::level::level_enum llvl)
 {
-	logger->log(llvl, message.toStdString());	
+	logger->log(llvl, message.toStdString());
 }
 
+QMap<QString, QString> MainWindow::GetFirmwareURLList() const
+{
+	//https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromList.json
+
+	QString const url = "http://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromList.json";
+
+	QNetworkAccessManager manager;
+	QNetworkRequest request(url);
+	request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+	QNetworkReply* response = manager.get(request);
+
+	QElapsedTimer timer;
+	timer.start();
+
+	while (!response->isFinished())
+	{
+		if (timer.elapsed() >= (5 * 1000))
+		{
+			response->abort();
+			return QMap<QString, QString>();
+		}
+		QCoreApplication::processEvents();
+	}
+
+	auto content = response->readAll();
+	response->deleteLater();
+
+	QJsonDocument loadDoc(QJsonDocument::fromJson(content));
+	QJsonArray capeArray = loadDoc.array();
+	QMap<QString, QString> capeList;
+	for (auto const& cape : capeArray)
+	{
+		QJsonObject capeObj = cape.toObject();
+		QString name = capeObj["cape"].toString();
+
+		if (capeObj.contains("eeproms"))
+		{
+			QJsonArray eepromArray = capeObj["eeproms"].toArray();
+			for (auto const& eeprom : eepromArray)
+			{
+				QJsonObject eepromObj = eeprom.toObject();
+				QString ver = eepromObj["version"].toString();
+				QString url = eepromObj["url"].toString();
+				capeList.insert(name + "_" + ver, url);
+			}
+		}
+	}
+
+	return capeList;
+}
+
+void MainWindow::DownloadFirmware(QString const& name, QString const& url)
+{
+	QNetworkAccessManager manager;
+	QNetworkRequest request(url);
+	request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+	QNetworkReply* response = manager.get(request);
+
+	QElapsedTimer timer;
+	timer.start();
+
+	while (!response->isFinished())
+	{
+		if (timer.elapsed() >= (5 * 1000))
+		{
+			response->abort();
+			return ;
+		}
+		QCoreApplication::processEvents();
+	}
+
+	auto content = response->readAll();
+	response->deleteLater();
+
+	QString folder = QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).at(0);
+	QString filePath = folder + "/" + name + ".bin";
+
+	QFile file(filePath);
+	if (!file.open(QFile::WriteOnly)) 
+	{
+		QMessageBox::information(this, tr("Unable to Save file"), file.errorString());
+		return;
+	}
+	file.write(content);
+	file.close();
+	LoadEEPROM(filePath);
+}

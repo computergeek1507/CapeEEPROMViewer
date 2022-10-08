@@ -172,6 +172,7 @@
      <addaction name="actionClear"/>
     </widget>
     <addaction name="actionOpen_EEPROM"/>
+    <addaction name="actionDownload_EEPROM"/>
     <addaction name="menuRecent"/>
     <addaction name="separator"/>
     <addaction name="actionClose"/>
@@ -311,6 +312,11 @@
    </property>
    <property name="text">
     <string>Clear</string>
+   </property>
+  </action>
+  <action name="actionDownload_EEPROM">
+   <property name="text">
+    <string>Download EEPROM...</string>
    </property>
   </action>
  </widget>

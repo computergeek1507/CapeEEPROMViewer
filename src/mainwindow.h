@@ -31,6 +31,7 @@ public:
 public Q_SLOTS:
 
     void on_actionOpen_EEPROM_triggered();
+    void on_actionDownload_EEPROM_triggered();
     void on_actionClose_triggered();
 
     void on_actionAbout_triggered();
@@ -41,7 +42,7 @@ public Q_SLOTS:
 
     void RedrawStringPortList(QString const& string);
 
-    void LogMessage(QString const& message , spdlog::level::level_enum llvl = spdlog::level::level_enum::debug, QString const& file = QString());
+    void LogMessage(QString const& message , spdlog::level::level_enum llvl = spdlog::level::level_enum::debug);
 
 private:
     Ui::MainWindow *ui;
@@ -61,6 +62,8 @@ private:
     void RedrawRecentList();
 
     void LoadEEPROM(QString const& filepath);
+    QMap<QString, QString> GetFirmwareURLList() const;
+    void DownloadFirmware(QString const& name, QString const& url);
 
 };
 #endif // MAINWINDOW_H
