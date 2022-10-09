@@ -24,6 +24,7 @@
 #include <QJsonArray>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QStandardPaths>
 
 #include "spdlog/spdlog.h"
 
@@ -509,6 +510,7 @@ void MainWindow::DownloadFirmware(QString const& name, QString const& url)
 	response->deleteLater();
 
 	QString folder = QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).at(0);
+    std::filesystem::create_directories(folder.toStdString());
 	QString filePath = folder + "/" + name + ".bin";
 
 	QFile file(filePath);
