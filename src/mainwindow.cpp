@@ -4,7 +4,6 @@
 
 #include "cape_utils.h"
 
-
 #include "config.h"
 
 #include <QMessageBox>
@@ -71,11 +70,11 @@ MainWindow::MainWindow(QWidget *parent)
 	connect(ui->comboBoxCape, &QComboBox::currentTextChanged, this, &MainWindow::RedrawStringPortList);
 
 	bool ssl = QSslSocket::supportsSsl();
-	QString sslFile = QSslSocket::sslLibraryBuildVersionString();
+	QString const sslFile = QSslSocket::sslLibraryBuildVersionString();
 
 	if (!ssl)
 	{
-		QString text = QStringLiteral("OpenSSL not found on your computer.<br>Please Install " ) + sslFile + QStringLiteral("<br><a href = 'http://slproweb.com/products/Win32OpenSSL.html'>OpenSSL Download< / a>");
+		QString const text = QStringLiteral("OpenSSL not found on your computer.<br>Please Install " ) + sslFile + QStringLiteral("<br><a href='http://slproweb.com/products/Win32OpenSSL.html'>OpenSSL Download</a>");
 		QMessageBox::warning(this, "OpenSSL", text);
 	}
 }
@@ -113,9 +112,9 @@ void MainWindow::on_actionClose_triggered()
 
 void MainWindow::on_actionAbout_triggered()
 {
-	QString text {QString("Cape EEPROM Viewer v%1\nQT v%2\n\n\nIcons by:\n%4")
-		.arg(PROJECT_VER).arg(QT_VERSION_STR)
-		.arg(R"(http://www.famfamfam.com/lab/icons/silk/)")};
+	QString text = QString("Cape EEPROM Viewer v%1<br>QT v%2<br><br>Icons by:")
+		.arg(PROJECT_VER, QT_VERSION_STR) +
+		QStringLiteral("<br><a href='http://www.famfamfam.com/lab/icons/silk/'>www.famfamfam.com</a>");
 		//http://www.famfamfam.com/lab/icons/silk/
 	QMessageBox::about( this, "About Cape EEPROM Viewer", text );
 }
@@ -261,7 +260,6 @@ void MainWindow::ReadGPIOFile(QString const& folder)
 				SetItem(row, 4, mapObj["failing"].toObject()["args"].toArray()[0].toString());
 			}
 		}
-
 		++row;
 	}
 }
@@ -291,7 +289,6 @@ void MainWindow::ReadOtherFile(QString const& folder)
 	}
 
 	QByteArray saveData = jsonFile.readAll();
-
 	QJsonDocument loadDoc(QJsonDocument::fromJson(saveData));
 	QJsonArray mappingArray = loadDoc.object()["channelOutputs"].toArray();
 
@@ -301,7 +298,6 @@ void MainWindow::ReadOtherFile(QString const& folder)
 	for (auto const& mapp : mappingArray)
 	{
 		QJsonObject mapObj = mapp.toObject();
-
 		if (mapObj.contains("type"))
 		{
 			SetItem(row, 0, mapObj["type"].toString());
@@ -344,7 +340,6 @@ void MainWindow::RedrawStringPortList(QString const& strings)
 	}
 
 	QByteArray saveData = jsonFile.readAll();
-
 	QJsonDocument loadDoc(QJsonDocument::fromJson(saveData));
 	int tableSize{0};
 
