@@ -7,13 +7,8 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # Set path to our custom CMAKE scripts
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 
-if(QT_VERSION_MAJOR EQUAL 5)
-if(WIN32)
-    # Include Qt deployment helper function
-    include(windeployqt)
-endif()
-endif()
-
+# Include Qt deployment helper function
+include(windeployqt)
 
 include(FetchContent)
 
@@ -45,7 +40,7 @@ configure_file(res/installer/CapeEEPROMViewer.iss.in ${CMAKE_CURRENT_SOURCE_DIR}
 file( GLOB_RECURSE BASE_SRC src/*cpp src/*h)
 file( GLOB_RECURSE BASE_RES res/*ui res/*qrc)
 
-if(QT_VERSION_MAJOR EQUAL 6)
+if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
 qt6_wrap_ui(BASE_SRC res/mainwindow.ui)
 else()
 qt5_wrap_ui(BASE_SRC res/mainwindow.ui)
@@ -90,10 +85,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     WIN32_EXECUTABLE TRUE
 )
 
-if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(${PROJECT_NAME})
-endif()
-
 target_sources(${PROJECT_NAME} PRIVATE res/resource.rc)
 
 if(WIN32)
@@ -103,8 +94,10 @@ endif()
 source_group(src FILES ${BASE_SRC})
 source_group(res FILES ${BASE_RES})
 
-if(QT_VERSION_MAJOR EQUAL 5)
-if(WIN32)
-windeployqt(${PROJECT_NAME})
-endif()
+if(QT_VERSION_MAJOR EQUAL 6)
+    qt_finalize_executable(${PROJECT_NAME})
+ else()   
+    if(WIN32)
+        windeployqt(${PROJECT_NAME})
+    endif()
 endif()

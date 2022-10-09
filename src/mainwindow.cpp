@@ -439,7 +439,7 @@ QMap<QString, QString> MainWindow::GetFirmwareURLList() const
 {
 	//https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromList.json
 
-	QString const url = "http://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromList.json";
+	QString const url = "https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromList.json";
 
 	QNetworkAccessManager manager;
 	QNetworkRequest request(url);
