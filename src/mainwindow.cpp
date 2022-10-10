@@ -71,15 +71,6 @@ MainWindow::MainWindow(QWidget *parent)
 	RedrawRecentList();
 	connect(ui->comboBoxCape, &QComboBox::currentTextChanged, this, &MainWindow::RedrawStringPortList);
 
-	bool ssl = QSslSocket::supportsSsl();
-	QString const sslFile = QSslSocket::sslLibraryBuildVersionString();
-
-	if (!ssl)
-	{
-		QString const text = QStringLiteral("OpenSSL not found on your computer.<br>Please Install " ) + sslFile + QStringLiteral("<br><a href='http://slproweb.com/products/Win32OpenSSL.html'>OpenSSL Download</a>");
-		QMessageBox::warning(this, "OpenSSL", text);
-	}
-
 	if (QOperatingSystemVersion::current().type() == QOperatingSystemVersion::OSType::Windows)
 	{
 		int micro = QOperatingSystemVersion::current().microVersion();
@@ -107,6 +98,15 @@ void MainWindow::on_actionOpen_EEPROM_triggered()
 
 void MainWindow::on_actionDownload_EEPROM_triggered()
 {
+	bool ssl = QSslSocket::supportsSsl();
+	QString const sslFile = QSslSocket::sslLibraryBuildVersionString();
+
+	if (!ssl)
+	{
+		QString const text = QStringLiteral("OpenSSL was not found on your computer, This Feature will not work without it.<br>Please Install " ) + sslFile + QStringLiteral("<br><a href='http://slproweb.com/products/Win32OpenSSL.html'>OpenSSL Download</a>");
+		QMessageBox::warning(this, "OpenSSL", text);
+		return;
+	}
 	auto firmwares = GetFirmwareURLList();
 	bool ok;
 	QString firmware = QInputDialog::getItem(this, "Select FPP Firmware", "Select FPP Firmware", firmwares.keys(), 0, false, &ok);
