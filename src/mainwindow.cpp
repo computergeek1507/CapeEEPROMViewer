@@ -57,6 +57,7 @@ MainWindow::MainWindow(QWidget *parent)
 		logger->flush_on(spdlog::level::debug);
 		logger->set_level(spdlog::level::debug);
 		logger->set_pattern("[%D %H:%M:%S] [%L] %v");
+		spdlog::register_logger(logger);
 	}
 	catch (std::exception& /*ex*/)
 	{

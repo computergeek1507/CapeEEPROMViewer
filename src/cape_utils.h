@@ -6,7 +6,7 @@
 
 namespace cape_utils
 {
-	std::string exec(const std::string& cmd, const std::string& dir);
+	QString exec(const QString& cmd, const QStringList& args, const QString& dir);
 	std::string trim(std::string str);
     std::string read_string(FILE* file, int len);
 	void put_file_contents(const std::string& path, const uint8_t* data, int len);

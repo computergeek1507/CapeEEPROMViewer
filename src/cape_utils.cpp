@@ -3,33 +3,43 @@
 #include <filesystem>
 #include <array>
 #include <QProcess>
+
+#include "spdlog/spdlog.h"
+
 namespace cape_utils
 {
-    std::string exec(const std::string& cmd, const std::string& dir) {
+    QString exec(const QString& cmd, const QStringList& args, const QString& dir)
+    {
         QProcess gzip;
-        gzip.setWorkingDirectory(dir.c_str());
-        gzip.start(cmd.c_str());
+        gzip.setWorkingDirectory(dir);
+        gzip.start(cmd, args);
         if (!gzip.waitForStarted())
+        {
             return "";
+        }
 
         gzip.closeWriteChannel();
 
         if (!gzip.waitForFinished())
+        {
             return "";
+        }
 
         QByteArray result = gzip.readAll();
-        return QString(result).toStdString();
+        //auto logger = spdlog::get("capeeepromviewer");
+        //logger->error("exec: {}", result);
+        return QString(result);
     }
 
     std::string trim(std::string str) {
         // remove trailing white space
         while (!str.empty() && (std::isspace(str.back()) || str.back() == 0))
-            str.pop_back();
+        {    str.pop_back();}
 
         // return residue after leading white space
         std::size_t pos = 0;
         while (pos < str.size() && std::isspace(str[pos]))
-            ++pos;
+        {    ++pos;}
         return str.substr(pos);
     }
     std::string read_string(FILE* file, int len) {
@@ -48,14 +58,32 @@ namespace cape_utils
 
     cape_info parseEEPROM(std::string const& EEPROM) {
         cape_info info;
-        try {
-            std::filesystem::path eeprompath(EEPROM);
-            std::string eepromdir = eeprompath.parent_path().string();
+        std::filesystem::path eeprompath(EEPROM);
+        std::string eepromdir = eeprompath.parent_path().string();
+        try 
+        {
             eepromdir += "/";
             eepromdir += eeprompath.stem().string();
             eepromdir += "/";
-            std::filesystem::remove_all(eepromdir);
+            if(std::filesystem::exists(eepromdir))
+            {
+                std::filesystem::remove_all(eepromdir);
+            }
             std::filesystem::create_directories(eepromdir);
+        }
+        catch (std::exception const& ex)
+        {
+            auto logger = spdlog::get("capeeepromviewer");
+            logger->error("Failed to create eeprom dir: {}", ex.what());
+        }
+        catch (...)
+        {
+            auto logger = spdlog::get("capeeepromviewer");
+            logger->error("Failed to create eeprom dir: {}", eepromdir);
+        }
+
+        try
+        {
             uint8_t* buffer = new uint8_t[32768]; //32K is the largest eeprom we support, more than enough
             FILE* file = fopen(EEPROM.c_str(), "rb");
             if (file == nullptr) {
@@ -91,16 +119,16 @@ namespace cape_utils
                         put_file_contents(path, buffer, flen);
                         free(s1);
                         if (flag == 1) {
-                            std::string cmd = "7z x " + path;
-                            exec(cmd, eepromdir + dir);
+                            QString const cmd = "unzip";
+                            exec(cmd, QStringList() << "-x" << path.c_str(), QString::fromStdString(eepromdir + dir));
                         }
                         else if (flag == 2) {
-                            std::string cmd = "tar -xzvf " + path;
-                            exec(cmd, eepromdir + dir);
+                            QString const cmd = "tar";
+                            exec(cmd, QStringList() << "-xzvf" << path.c_str(), QString::fromStdString(eepromdir + dir));
                         }
                         else if (flag == 3) {
-                            std::string cmd = "tar -xjvf " + path;
-                            exec(cmd, eepromdir + dir);
+                            QString const cmd = "tar";
+                            exec(cmd, QStringList() << "-xzvf" << path.c_str(), QString::fromStdString(eepromdir + dir));
                         }
                         break;
                     }
@@ -127,14 +155,25 @@ namespace cape_utils
                         fseek(file, flen, SEEK_CUR);
                     }
                     flenStr = read_string(file, 6); //length of the section
+                    if(flenStr.empty())
+                    {
+                        break;
+                    }
                     flen = std::stoi(flenStr);
                 }
             }
             fclose(file);
             delete[] buffer;
         }
+        catch (std::exception const& ex)
+        {
+            auto logger = spdlog::get("capeeepromviewer");
+            logger->error("Failed to extract eeprom: {}", ex.what());
+        }
         catch (...)
         {
+            auto logger = spdlog::get("capeeepromviewer");
+            logger->error("Failed to extract eeprom: {}", EEPROM);
         }
         return info;
     }
