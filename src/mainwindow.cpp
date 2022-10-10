@@ -24,6 +24,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QStandardPaths>
+#include <QOperatingSystemVersion>
 
 #include "spdlog/spdlog.h"
 
@@ -76,6 +77,16 @@ MainWindow::MainWindow(QWidget *parent)
 	{
 		QString const text = QStringLiteral("OpenSSL not found on your computer.<br>Please Install " ) + sslFile + QStringLiteral("<br><a href='http://slproweb.com/products/Win32OpenSSL.html'>OpenSSL Download</a>");
 		QMessageBox::warning(this, "OpenSSL", text);
+	}
+
+	if (QOperatingSystemVersion::current().type() == QOperatingSystemVersion::OSType::Windows)
+	{
+		int micro = QOperatingSystemVersion::current().microVersion();
+
+		if (micro < 17134)//Windows 10 1803 April 2018 Update
+		{
+			QMessageBox::warning(this, "Windows Version Error", "Your Verison of Windows is too old.\nPlease Update to Windows 10 1803 April 2018 Update or Newer");
+		}
 	}
 }
 
