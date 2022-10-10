@@ -86,7 +86,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::on_actionOpen_EEPROM_triggered()
 {
-	QString const EEPROM = QFileDialog::getOpenFileName(this, "Select EEPROM File", settings->value("last_project").toString(), tr("EEPROM Files (*.bin);;All Files (*.*)"));
+	QString const EEPROM = QFileDialog::getOpenFileName(this, "Select EEPROM File", settings->value("last_project").toString(), tr("EEPROM Files (*.bin *.eeprom);;All Files (*.*)"));
 	if (!EEPROM.isEmpty())
 	{
 		LoadEEPROM(EEPROM);
@@ -233,31 +233,35 @@ void MainWindow::ReadGPIOFile(QString const& folder)
 		QString mode = mapObj["mode"].toString();
 		SetItem(row, 0, pin);
 		SetItem(row, 1, mode);
+		if (mapObj.contains("desc"))
+		{
+			SetItem(row, 2, mapObj["desc"].toString());
+		}
 
 		if (mapObj.contains("rising"))
 		{
-			SetItem(row, 2, "rising");
+			SetItem(row, 3, "rising");
 			if (mapObj["rising"].toObject().contains("command")) 
 			{
-				SetItem(row, 3, mapObj["rising"].toObject()["command"].toString());
+				SetItem(row, 4, mapObj["rising"].toObject()["command"].toString());
 			}
 			if (mapObj["rising"].toObject().contains("args") &&
 				mapObj["rising"].toObject()["args"].toArray().size()>0)
 			{
-				SetItem(row, 4, mapObj["rising"].toObject()["args"].toArray()[0].toString());
+				SetItem(row, 5, mapObj["rising"].toObject()["args"].toArray()[0].toString());
 			}
 		}
-		else if (mapObj.contains("failing"))
+		else if (mapObj.contains("falling"))
 		{
-			SetItem(row, 2, "failing");
-			if (mapObj["failing"].toObject().contains("command"))
+			SetItem(row, 3, "falling");
+			if (mapObj["falling"].toObject().contains("command"))
 			{
-				SetItem(row, 3, mapObj["failing"].toObject()["command"].toString());
+				SetItem(row, 4, mapObj["falling"].toObject()["command"].toString());
 			}
-			if (mapObj["failing"].toObject().contains("args") &&
-				mapObj["failing"].toObject()["args"].toArray().size() > 0)
+			if (mapObj["falling"].toObject().contains("args") &&
+				mapObj["falling"].toObject()["args"].toArray().size() > 0)
 			{
-				SetItem(row, 4, mapObj["failing"].toObject()["args"].toArray()[0].toString());
+				SetItem(row, 5, mapObj["falling"].toObject()["args"].toArray()[0].toString());
 			}
 		}
 		++row;
