@@ -32,6 +32,7 @@ public Q_SLOTS:
 
     void on_actionOpen_EEPROM_triggered();
     void on_actionDownload_EEPROM_triggered();
+    void on_actionOpen_Temp_Folder_triggered();
     void on_actionClose_triggered();
 
     void on_actionAbout_triggered();
@@ -56,13 +57,15 @@ private:
     void ReadCapeInfo(QString const& file);
     void CreateStringsList(QString const& folder);
     void ReadGPIOFile(QString const& folder);
+    void ReadCapeInputsFile(QString const& folder);
     void ReadOtherFile(QString const& folder);
 
     void AddRecentList(QString const& project);
     void RedrawRecentList();
 
     void LoadEEPROM(QString const& filepath);
-    QMap<QString, QString> GetFirmwareURLList() const;
+    QMap<QString, QString> GetVendorURLList() const;
+    QMap<QString, QString> GetFirmwareURLList(QString const& url) const;
     void DownloadFirmware(QString const& name, QString const& url);
 
 };

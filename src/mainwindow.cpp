@@ -107,14 +107,30 @@ void MainWindow::on_actionDownload_EEPROM_triggered()
 		QMessageBox::warning(this, "OpenSSL", text);
 		return;
 	}
-	auto firmwares = GetFirmwareURLList();
+	auto vendors = GetVendorURLList();
 	bool ok;
+	QString vendor = QInputDialog::getItem(this, "Select Vendor", "Select Vendor", vendors.keys(), 0, false, &ok);
+
+	if (!ok || vendor.isEmpty())
+	{
+		return;
+	}
+
+	auto firmwares = GetFirmwareURLList(vendors.value(vendor));
+
 	QString firmware = QInputDialog::getItem(this, "Select FPP Firmware", "Select FPP Firmware", firmwares.keys(), 0, false, &ok);
 
 	if (ok && !firmware.isEmpty())
 	{
 		DownloadFirmware(firmware, firmwares.value(firmware));
 	}
+}
+
+void MainWindow::on_actionOpen_Temp_Folder_triggered() 
+{
+	QString folder = QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).at(0);
+
+	QDesktopServices::openUrl(folder);
 }
 
 void MainWindow::on_actionClose_triggered()
@@ -222,6 +238,7 @@ void MainWindow::ReadGPIOFile(QString const& folder)
 	if (!jsonFile.exists())
 	{
 		LogMessage("file not found gpio.json", spdlog::level::level_enum::err);
+		ReadCapeInputsFile(folder);
 		return;
 	}
 	if (!jsonFile.open(QIODevice::ReadOnly))
@@ -276,6 +293,55 @@ void MainWindow::ReadGPIOFile(QString const& folder)
 				SetItem(row, 5, mapObj["falling"].toObject()["args"].toArray()[0].toString());
 			}
 		}
+		++row;
+	}
+}
+
+void MainWindow::ReadCapeInputsFile(QString const& folder)
+{
+	ui->twGPIO->clearContents();
+	ui->twGPIO->setRowCount(0);
+	auto SetItem = [&](int row, int col, QString const& text)
+		{
+			ui->twGPIO->setItem(row, col, new QTableWidgetItem());
+			ui->twGPIO->item(row, col)->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+			ui->twGPIO->item(row, col)->setText(text);
+		};
+
+	QFile jsonFile(folder + "/cape-inputs.json");
+	if (!jsonFile.exists())
+	{
+		LogMessage("file not found cape-inputs.json", spdlog::level::level_enum::err);
+		return;
+	}
+	if (!jsonFile.open(QIODevice::ReadOnly))
+	{
+		LogMessage("Error Opening: cape-inputs.json", spdlog::level::level_enum::err);
+		return;
+	}
+
+	QByteArray saveData = jsonFile.readAll();
+
+	QJsonDocument loadDoc(QJsonDocument::fromJson(saveData));
+
+	QJsonObject mappingObject = loadDoc.object();
+	QJsonArray mappingArray = mappingObject["inputs"].toArray();
+
+	ui->twGPIO->setRowCount(static_cast<int>(mappingArray.size()));
+	int row{ 0 };
+
+	for (auto const& mapp : mappingArray)
+	{
+		QJsonObject mapObj = mapp.toObject();
+		QString pin = mapObj["pin"].toString();
+		QString mode = mapObj["mode"].toString();
+		QString edge = mapObj["edge"].toString();
+		QString type = mapObj["type"].toString();
+		SetItem(row, 0, pin);
+		SetItem(row, 1, mode);
+		SetItem(row, 3, edge);
+		SetItem(row, 4, type);
+		
 		++row;
 	}
 }
@@ -446,11 +512,11 @@ void MainWindow::LogMessage(QString const& message, spdlog::level::level_enum ll
 	logger->log(llvl, message.toStdString());
 }
 
-QMap<QString, QString> MainWindow::GetFirmwareURLList() const
+QMap<QString, QString> MainWindow::GetVendorURLList() const
 {
 	//https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromList.json
 
-	QString const url = "https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromList.json";
+	QString const url = "https://raw.githubusercontent.com/FalconChristmas/fpp-data/master/eepromVendors.json";
 
 	QNetworkAccessManager manager;
 	QNetworkRequest request(url);
@@ -474,23 +540,57 @@ QMap<QString, QString> MainWindow::GetFirmwareURLList() const
 	response->deleteLater();
 
 	QJsonDocument loadDoc(QJsonDocument::fromJson(content));
-	QJsonArray capeArray = loadDoc.array();
-	QMap<QString, QString> capeList;
-	for (auto const& cape : capeArray)
-	{
-		QJsonObject capeObj = cape.toObject();
-		QString name = capeObj["cape"].toString();
+	QJsonObject mainObject = loadDoc.object();
 
-		if (capeObj.contains("eeproms"))
+	QJsonObject capeVendor = mainObject["vendors"].toObject();
+	QMap<QString, QString> vendorList;
+
+	for (auto const & vendorKey: capeVendor.keys()) 
+	{
+		QString vendorURL = capeVendor.value(vendorKey)["url"].toString();
+		vendorList.insert(vendorKey, vendorURL);
+	}
+	return vendorList;
+}
+
+QMap<QString, QString> MainWindow::GetFirmwareURLList(QString const& url) const
+{
+	QNetworkAccessManager manager;
+	QNetworkRequest request(url);
+	request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+	QNetworkReply* response = manager.get(request);
+
+	QElapsedTimer timer;
+	timer.start();
+
+	while (!response->isFinished())
+	{
+		if (timer.elapsed() >= (5 * 1000))
 		{
-			QJsonArray eepromArray = capeObj["eeproms"].toArray();
-			for (auto const& eeprom : eepromArray)
-			{
-				QJsonObject eepromObj = eeprom.toObject();
-				QString ver = eepromObj["version"].toString();
-				QString url = eepromObj["url"].toString();
-				capeList.insert(name + "_" + ver, url);
-			}
+			response->abort();
+			return QMap<QString, QString>();
+		}
+		QCoreApplication::processEvents();
+	}
+
+	auto content = response->readAll();
+	response->deleteLater();
+
+	QJsonDocument loadDoc(QJsonDocument::fromJson(content));
+
+	QMap<QString, QString> capeList;
+
+	QJsonObject mainObject = loadDoc.object();
+
+	QJsonObject capeObject = mainObject["capes"].toObject();
+
+	for (auto const& capeKey : capeObject.keys())
+	{
+		QJsonObject versions = capeObject.value(capeKey)["versions"].toObject();
+		for (auto const& verKey : versions.keys())
+		{
+			QString eepromURL = versions.value(verKey)["url"].toString();
+			capeList.insert(capeKey + "_" + verKey, eepromURL);
 		}
 	}
 
@@ -521,8 +621,12 @@ void MainWindow::DownloadFirmware(QString const& name, QString const& url)
 	response->deleteLater();
 
 	QString folder = QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).at(0);
-    std::filesystem::create_directories(folder.toStdString());
-	QString filePath = folder + "/" + name + ".bin";
+	std::filesystem::create_directories(folder.toStdString());
+
+	int idx = url.lastIndexOf("/");
+	QString eeprom_file = url.mid(idx + 1);
+
+	QString filePath = folder + "/" + eeprom_file;
 
 	QFile file(filePath);
 	if (!file.open(QFile::WriteOnly)) 

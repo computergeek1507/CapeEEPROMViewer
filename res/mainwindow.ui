@@ -180,6 +180,8 @@
     <addaction name="actionDownload_EEPROM"/>
     <addaction name="menuRecent"/>
     <addaction name="separator"/>
+    <addaction name="actionOpen_Temp_Folder"/>
+    <addaction name="separator"/>
     <addaction name="actionClose"/>
    </widget>
    <widget class="QMenu" name="menuAbout">
@@ -322,6 +324,11 @@
   <action name="actionDownload_EEPROM">
    <property name="text">
     <string>Download EEPROM...</string>
+   </property>
+  </action>
+  <action name="actionOpen_Temp_Folder">
+   <property name="text">
+    <string>Open Temp Folder</string>
    </property>
   </action>
  </widget>
